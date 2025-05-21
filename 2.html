@@ -1,0 +1,385 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>مولد الصور النصية 512x512 (بألوان قابلة للتخصيص)</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px;
+            background-color: #f4f4f4;
+            direction: rtl;
+        }
+
+        h1 {
+            color: #333;
+            text-align: center;
+        }
+
+        .controls {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 15px; /* مسافة بين عناصر التحكم */
+            margin-bottom: 20px;
+            width: 90%;
+            max-width: 500px;
+        }
+
+        .control-group {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            width: 100%;
+            justify-content: center; /* توسيط عناصر اختيار الألوان */
+        }
+
+         .control-group label {
+             white-space: nowrap; /* منع التفاف النص في التسمية */
+         }
+
+        #textInput {
+            width: 100%; /* جعل حقل النص يأخذ عرض الحاوية */
+            box-sizing: border-box; /* ليشمل الحشو والإطار ضمن العرض */
+            min-height: 100px;
+            padding: 10px;
+            font-size: 16px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            resize: vertical;
+        }
+
+        /* تنسيق إضافي لأدوات اختيار الألوان */
+        input[type="color"] {
+            padding: 0;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            cursor: pointer;
+            height: 40px; /* زيادة الارتفاع قليلاً */
+            width: 60px; /* زيادة العرض قليلاً */
+        }
+
+        button, #downloadLink {
+            padding: 10px 20px;
+            font-size: 16px;
+            cursor: pointer;
+            border: none;
+            border-radius: 5px;
+            margin: 5px;
+            transition: background-color 0.3s ease;
+            text-decoration: none;
+            display: inline-block;
+        }
+
+        #createButton {
+            background-color: #007bff;
+            color: white;
+            width: auto; /* تعديل العرض ليكون تلقائي */
+            align-self: center; /* توسيط الزر */
+        }
+
+        #createButton:hover {
+            background-color: #0056b3;
+        }
+
+        #downloadLink {
+            background-color: #28a745;
+            color: white;
+            display: none; /* إخفاء زر التحميل في البداية */
+        }
+
+        #downloadLink:hover {
+            background-color: #218838;
+        }
+
+        #imageContainer {
+            margin-top: 20px;
+            border: 1px solid #ddd;
+            background-color: #fff;
+            width: 512px;
+            height: 512px;
+            max-width: 90%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 0;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+
+        #imageContainer img {
+            width: 100%;
+            height: 100%;
+            display: block;
+            object-fit: contain;
+        }
+         #imageContainer p {
+            padding: 20px;
+            text-align: center;
+            color: #888;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>مولد الصور النصية 512x512</h1>
+
+    <div class="controls">
+        <textarea id="textInput" placeholder="اكتب النص الذي تريد وضعه على الصورة هنا..."></textarea>
+
+        <div class="control-group">
+            <label for="bgColorPicker">لون الخلفية:</label>
+            <input type="color" id="bgColorPicker" value="#333366"> <!-- لون افتراضي غامق قليلاً -->
+        </div>
+
+        <div class="control-group">
+            <label for="textColorPicker">لون النص:</label>
+            <input type="color" id="textColorPicker" value="#FFFFFF"> <!-- لون افتراضي أبيض -->
+        </div>
+
+        <button id="createButton">أنشئ الصورة</button>
+    </div>
+
+
+    <div id="imageContainer">
+        <p>سيتم عرض الصورة هنا بعد إنشائها (512x512).</p>
+    </div>
+
+    <a href="#" id="downloadLink" download="image_512x512.png">تحميل الصورة</a>
+
+    <script>
+        const textInput = document.getElementById('textInput');
+        const createButton = document.getElementById('createButton');
+        const imageContainer = document.getElementById('imageContainer');
+        const downloadLink = document.getElementById('downloadLink');
+        const bgColorPicker = document.getElementById('bgColorPicker'); // أداة اختيار لون الخلفية
+        const textColorPicker = document.getElementById('textColorPicker'); // أداة اختيار لون النص
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+
+        // --- إعدادات يمكن تعديلها ---
+        const canvasWidth = 512;
+        const canvasHeight = 512;
+        const padding = 35;
+        const defaultFontSize = 40;
+        const lineHeightRatio = 1.2;
+        // const textColor = '#FFFFFF'; // تم استبداله بـ textColorPicker
+        const textStrokeColor = '#000000'; // يمكن الإبقاء على الإطار الأسود أو جعله قابل للتعديل أيضاً
+        const textStrokeWidth = 3; // عرض الإطار للنص (يساعد على القراءة)
+        const decorationColor = 'rgba(255, 255, 255, 0.4)';
+        const decorationWidth = 2;
+        const cornerRadiusDecoration = 25;
+        const innerRadiusDecoration = 12;
+        const watermarkText = 'Obeida Ali ';
+        const watermarkFont = 'italic 20px Arial';
+        const watermarkColor = 'rgba(255, 255, 255, 0.6)'; // قد تحتاج لتعديل شفافية العلامة المائية حسب الخلفية
+        const watermarkPadding = 14;
+        // -------------------------------------
+
+        canvas.width = canvasWidth;
+        canvas.height = canvasHeight;
+
+        createButton.addEventListener('click', () => {
+            const text = textInput.value.trim();
+            const selectedBgColor = bgColorPicker.value; // الحصول على لون الخلفية المختار
+            const selectedTextColor = textColorPicker.value; // الحصول على لون النص المختار
+
+            if (!text) {
+                alert('الرجاء إدخال نص لإنشاء الصورة.');
+                return;
+            }
+
+            // 1. رسم الخلفية باللون المختار
+            ctx.fillStyle = selectedBgColor;
+            ctx.fillRect(0, 0, canvasWidth, canvasHeight);
+
+            // --- (اختياري) تعديل لون الزخرفة والعلامة المائية بناءً على سطوع الخلفية ---
+            // يمكن إضافة منطق هنا لجعل الزخرفة والعلامة المائية أغمق إذا كانت الخلفية فاتحة جداً والعكس صحيح
+            // مثال بسيط (يحتاج لتحسين):
+            let dynamicDecorationColor = decorationColor;
+            let dynamicWatermarkColor = watermarkColor;
+            const bgBrightness = getBrightness(selectedBgColor);
+            if (bgBrightness > 180) { // إذا كانت الخلفية فاتحة نسبياً
+                 dynamicDecorationColor = 'rgba(0, 0, 0, 0.3)'; // زخرفة داكنة شفافة
+                 dynamicWatermarkColor = 'rgba(0, 0, 0, 0.4)'; // علامة مائية داكنة شفافة
+            } else {
+                // استخدام الألوان الافتراضية للخلفيات الداكنة
+                dynamicDecorationColor = decorationColor;
+                dynamicWatermarkColor = watermarkColor;
+            }
+            // ----------------------------------------------------------------------
+
+            // 2. رسم الزخارف (باستخدام اللون الديناميكي إذا تم تطبيقه)
+            drawBorderDecorations(ctx, canvasWidth, canvasHeight, dynamicDecorationColor);
+
+            // 3. رسم العلامة المائية (باستخدام اللون الديناميكي إذا تم تطبيقه)
+            drawWatermark(ctx, canvasWidth, canvasHeight, dynamicWatermarkColor);
+
+            // 4. رسم النص الرئيسي (باستخدام لون النص المختار)
+            // **التفاف النص يحدث داخل هذه الدالة**
+            drawWrappedText(text, selectedTextColor);
+
+            // 5. عرض الصورة
+            const dataURL = canvas.toDataURL('image/png');
+            const img = new Image();
+            img.onload = () => {
+                imageContainer.innerHTML = '';
+                imageContainer.appendChild(img);
+                downloadLink.href = dataURL;
+                const timestamp = new Date().toISOString().replace(/[:.-]/g, '');
+                downloadLink.download = `text_image_512x512_${timestamp}.png`;
+                downloadLink.style.display = 'inline-block';
+            };
+            img.onerror = () => {
+                 imageContainer.innerHTML = '<p>حدث خطأ أثناء تحميل الصورة.</p>';
+                 downloadLink.style.display = 'none';
+            };
+            img.src = dataURL;
+        });
+
+        // --- الدوال المساعدة ---
+
+        // دالة لحساب سطوع لون (تقريبي)
+        function getBrightness(hexColor) {
+            // إزالة # إذا كانت موجودة
+            hexColor = hexColor.replace('#', '');
+            // تحويل إلى RGB
+            const r = parseInt(hexColor.substring(0, 2), 16);
+            const g = parseInt(hexColor.substring(2, 4), 16);
+            const b = parseInt(hexColor.substring(4, 6), 16);
+            // معادلة السطوع (YIQ)
+            return ((r * 299) + (g * 587) + (b * 114)) / 1000;
+        }
+
+
+        // تم تعديل الدالة لتقبل لون الزخرفة كمعامل
+        function drawBorderDecorations(context, width, height, color) {
+            context.save();
+            context.strokeStyle = color; // استخدام اللون المُمرر
+            context.lineWidth = decorationWidth;
+            const cornerRadius = cornerRadiusDecoration;
+            const innerRadius = innerRadiusDecoration;
+
+            // الزوايا الأربع (الكود نفسه، فقط اللون متغير)
+            context.beginPath(); context.arc(cornerRadius, cornerRadius, cornerRadius, Math.PI, 1.5 * Math.PI); context.stroke();
+            context.beginPath(); context.arc(cornerRadius, cornerRadius, innerRadius, Math.PI, 1.5 * Math.PI); context.stroke();
+            context.beginPath(); context.arc(width - cornerRadius, cornerRadius, cornerRadius, 1.5 * Math.PI, 0); context.stroke();
+            context.beginPath(); context.arc(width - cornerRadius, cornerRadius, innerRadius, 1.5 * Math.PI, 0); context.stroke();
+            context.beginPath(); context.arc(width - cornerRadius, height - cornerRadius, cornerRadius, 0, 0.5 * Math.PI); context.stroke();
+            context.beginPath(); context.arc(width - cornerRadius, height - cornerRadius, innerRadius, 0, 0.5 * Math.PI); context.stroke();
+            context.beginPath(); context.arc(cornerRadius, height - cornerRadius, cornerRadius, 0.5 * Math.PI, Math.PI); context.stroke();
+            context.beginPath(); context.arc(cornerRadius, height - cornerRadius, innerRadius, 0.5 * Math.PI, Math.PI); context.stroke();
+
+            context.restore();
+        }
+
+        // تم تعديل الدالة لتقبل لون العلامة المائية كمعامل
+        function drawWatermark(context, width, height, color) {
+            context.save();
+            context.font = watermarkFont;
+            context.fillStyle = color; // استخدام اللون المُمرر
+            context.textAlign = 'right';
+            context.textBaseline = 'bottom';
+            const x = width - watermarkPadding;
+            const y = height - watermarkPadding;
+            context.fillText(watermarkText, x, y);
+            context.restore();
+        }
+
+        // تم تعديل الدالة لتقبل لون النص كمعامل
+        // **التفاف النص يحدث هنا بشكل ضمني عبر استدعاء wrapText**
+        function drawWrappedText(text, textColor) {
+            ctx.fillStyle = textColor; // استخدام لون النص المختار
+            ctx.strokeStyle = textStrokeColor; // استخدام لون الإطار المحدد
+            ctx.lineWidth = textStrokeWidth;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+
+            let fontSize = defaultFontSize;
+            let lines = [];
+            let textFits = false;
+            const maxWidth = canvasWidth - (padding * 2);
+            const maxHeight = canvasHeight - (padding * 2);
+
+            // البحث عن أكبر حجم خط يناسب النص ضمن المساحة المتاحة
+            while (fontSize > 10 && !textFits) {
+                ctx.font = `bold ${fontSize}px Arial`; // يمكن تغيير نوع الخط هنا
+                const lineHeight = fontSize * lineHeightRatio;
+                lines = wrapText(text, maxWidth); // التفاف النص بناءً على العرض الأقصى
+                if (lines.length * lineHeight <= maxHeight) {
+                    textFits = true; // النص (بالارتفاع الحالي) يناسب
+                } else {
+                    fontSize -= 2; // تصغير حجم الخط والمحاولة مرة أخرى
+                }
+            }
+
+             // إذا لم يتناسب النص حتى بأصغر حجم، استخدم أصغر حجم
+             if (!textFits) {
+                 fontSize = 10;
+                 ctx.font = `bold ${fontSize}px Arial`;
+                 lines = wrapText(text, maxWidth);
+             }
+
+            const lineHeight = fontSize * lineHeightRatio;
+            const totalTextHeight = lines.length * lineHeight;
+            // حساب نقطة البداية العمودية لتوسيط النص
+            let startY = (canvasHeight - totalTextHeight) / 2 + (lineHeight / 2) - (fontSize * (lineHeightRatio - 1) / 2);
+            // التأكد من أن النص لا يبدأ فوق الهامش العلوي
+            startY = Math.max(startY, padding + (lineHeight / 2) - (fontSize * (lineHeightRatio - 1) / 2));
+
+            // رسم كل سطر من النص
+            lines.forEach((line, index) => {
+                const y = startY + (index * lineHeight);
+                 // التأكد من أن السطر لا يتجاوز الهامش السفلي قبل رسمه
+                 if (y < canvasHeight - padding + (fontSize / 2)) { // تعديل طفيف للشرط
+                    // رسم الإطار أولاً
+                    if (textStrokeWidth > 0) {
+                       ctx.strokeText(line, canvasWidth / 2, y);
+                    }
+                    // ثم رسم النص فوق الإطار
+                    ctx.fillText(line, canvasWidth / 2, y);
+                 }
+            });
+        }
+
+        // **وظيفة التفاف النص (لم تتغير عن الأصل)**
+        // تأخذ النص والعرض الأقصى المسموح به، وتعيد مصفوفة من الأسطر
+        function wrapText(text, maxWidth) {
+            // التأكد من أن الخط معرف قبل القياس
+            if (!ctx.font) ctx.font = `bold ${defaultFontSize}px Arial`;
+
+            const words = text.split(' ');
+            const lines = [];
+            let currentLine = words[0] || ''; // ابدأ بالكلمة الأولى
+
+            for (let i = 1; i < words.length; i++) {
+                const word = words[i];
+                // السطر التجريبي = السطر الحالي + مسافة + الكلمة الجديدة
+                const testLine = currentLine ? currentLine + " " + word : word;
+                // قياس عرض السطر التجريبي
+                const metrics = ctx.measureText(testLine);
+                const testWidth = metrics.width;
+
+                // إذا كان السطر التجريبي لا يزال ضمن العرض المسموح به
+                if (testWidth < maxWidth) {
+                    currentLine = testLine; // قم بتحديث السطر الحالي
+                } else {
+                    // إذا تجاوز العرض، أضف السطر الحالي المكتمل إلى قائمة الأسطر
+                   if (currentLine) { lines.push(currentLine); }
+                   // وابدأ سطراً جديداً بالكلمة الحالية
+                    currentLine = word;
+                }
+            }
+            // أضف السطر الأخير المتبقي
+            if (currentLine) { lines.push(currentLine); }
+            return lines;
+        }
+
+    </script>
+
+</body>
+</html>
